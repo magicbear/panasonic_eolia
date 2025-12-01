@@ -18,16 +18,8 @@ DOMAIN = 'panasonic_eolia'
 
 SCAN_INTERVAL = timedelta(seconds=300)
 
-# Deprecation warning
-warnings.warn(
+DEPRECATION_MESSAGE = (
     "The panasonic_eolia integration is deprecated and will no longer be maintained. "
-    "Panasonic has changed their API. Please consider migrating to EchoNetLite: "
-    "https://www.home-assistant.io/integrations/echonetlite/",
-    DeprecationWarning,
-    stacklevel=2
-)
-_LOGGER.warning(
-    "DEPRECATED: The panasonic_eolia integration is deprecated and will no longer be maintained. "
     "Panasonic has changed their API. Please consider migrating to EchoNetLite: "
     "https://www.home-assistant.io/integrations/echonetlite/"
 )
@@ -67,6 +59,10 @@ def api_call_login(func):
 
 def setup_platform(hass, config, add_entities, discovery_info=None):
     """Set up the panasonic cloud components."""
+    # Log deprecation warning when the platform is actually set up
+    warnings.warn(DEPRECATION_MESSAGE, DeprecationWarning, stacklevel=2)
+    _LOGGER.warning("DEPRECATED: %s", DEPRECATION_MESSAGE)
+
     username = config.get(CONF_USERNAME)
     password = config.get(CONF_PASSWORD)
 

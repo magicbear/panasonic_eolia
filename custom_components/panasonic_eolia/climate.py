@@ -1,4 +1,5 @@
 import logging
+import warnings
 import voluptuous as vol
 from datetime import timedelta
 from typing import Optional, List
@@ -16,6 +17,20 @@ _LOGGER = logging.getLogger(__name__)
 DOMAIN = 'panasonic_eolia'
 
 SCAN_INTERVAL = timedelta(seconds=300)
+
+# Deprecation warning
+warnings.warn(
+    "The panasonic_eolia integration is deprecated and will no longer be maintained. "
+    "Panasonic has changed their API. Please consider migrating to EchoNetLite: "
+    "https://www.home-assistant.io/integrations/echonetlite/",
+    DeprecationWarning,
+    stacklevel=2
+)
+_LOGGER.warning(
+    "DEPRECATED: The panasonic_eolia integration is deprecated and will no longer be maintained. "
+    "Panasonic has changed their API. Please consider migrating to EchoNetLite: "
+    "https://www.home-assistant.io/integrations/echonetlite/"
+)
 
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({

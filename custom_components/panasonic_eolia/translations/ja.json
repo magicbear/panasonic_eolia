@@ -19,5 +19,36 @@
     "abort": {
       "already_configured": "このパナソニック エオリア アカウントは既に設定されています。"
     }
+  },
+  "entity": {
+    "sensor": {
+      "inside_temperature": {
+        "name": "室内温度"
+      },
+      "outside_temperature": {
+        "name": "室外温度"
+      },
+      "inside_humidity": {
+        "name": "室内湿度"
+      }
+    },
+    "binary_sensor": {
+      "clean_filter": {
+        "name": "フィルターお掃除お知らせ"
+      },
+      "error_status": {
+        "name": "エラー状態"
+      }
+    },
+    "switch": {
+      "nanoex": {
+        "name": "ナノイーX"
+      }
+    },
+    "select": {
+      "horizontal_swing": {
+        "name": "左右風向"
+      }
+    }
   }
 }

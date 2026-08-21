@@ -19,5 +19,46 @@
     "abort": {
       "already_configured": "该松下 Eolia 账号已经配置过，无需重复添加。"
     }
+  },
+  "entity": {
+    "sensor": {
+      "inside_temperature": {
+        "name": "室内温度"
+      },
+      "outside_temperature": {
+        "name": "室外温度"
+      },
+      "inside_humidity": {
+        "name": "室内湿度"
+      }
+    },
+    "binary_sensor": {
+      "clean_filter": {
+        "name": "滤网清洁提示"
+      },
+      "error_status": {
+        "name": "故障状态"
+      }
+    },
+    "switch": {
+      "nanoex": {
+        "name": "nanoeX"
+      }
+    },
+    "select": {
+      "horizontal_swing": {
+        "name": "左右扫风",
+        "state": {
+          "Auto": "自动",
+          "Front": "正前",
+          "Spot": "集中",
+          "Wide": "宽域",
+          "Left": "向左",
+          "Nearby Left": "偏左",
+          "Nearby Right": "偏右",
+          "Right": "向右"
+        }
+      }
+    }
   }
 }

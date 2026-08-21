@@ -19,5 +19,46 @@
     "abort": {
       "already_configured": "This Panasonic Eolia account is already configured."
     }
+  },
+  "entity": {
+    "sensor": {
+      "inside_temperature": {
+        "name": "Inside Temperature"
+      },
+      "outside_temperature": {
+        "name": "Outside Temperature"
+      },
+      "inside_humidity": {
+        "name": "Inside Humidity"
+      }
+    },
+    "binary_sensor": {
+      "clean_filter": {
+        "name": "Clean Filter Notice"
+      },
+      "error_status": {
+        "name": "Error Status"
+      }
+    },
+    "switch": {
+      "nanoex": {
+        "name": "nanoeX"
+      }
+    },
+    "select": {
+      "horizontal_swing": {
+        "name": "Horizontal Swing",
+        "state": {
+          "Auto": "Auto",
+          "Front": "Front",
+          "Spot": "Spot",
+          "Wide": "Wide",
+          "Left": "Left",
+          "Nearby Left": "Nearby Left",
+          "Nearby Right": "Nearby Right",
+          "Right": "Right"
+        }
+      }
+    }
   }
 }

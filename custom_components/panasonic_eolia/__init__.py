@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Any
+from typing import Any, Dict
 
 from homeassistant.config_entries import ConfigEntry, SOURCE_IMPORT
 from homeassistant.const import Platform
@@ -11,11 +11,18 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.typing import ConfigType
 
 from .const import CONF_ACCESS_TOKEN, CONF_REFRESH_TOKEN, DOMAIN
-from .eolia_api import EoliaAuth, EoliaSession
+from .coordinator import EoliaDeviceCoordinator
+from .eolia_api import EoliaAuth, EoliaError, EoliaSession
 
 _LOGGER = logging.getLogger(__name__)
 
-PLATFORMS: list[Platform] = [Platform.CLIMATE]
+PLATFORMS: list[Platform] = [
+    Platform.CLIMATE,
+    Platform.SENSOR,
+    Platform.BINARY_SENSOR,
+    Platform.SWITCH,
+    Platform.SELECT,
+]
 
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
@@ -56,7 +63,27 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     auth = EoliaAuth(refresh_token=refresh_token, access_token=access_token)
     session = EoliaSession(auth=auth)
 
-    hass.data[DOMAIN][entry.entry_id] = session
+    # Fetch all devices
+    try:
+        devices_data = await hass.async_add_executor_job(session.get_devices)
+    except EoliaError as err:
+        _LOGGER.error("Failed to connect or fetch devices for %s: %s", entry.title, err)
+        return False
+
+    coordinators: Dict[str, EoliaDeviceCoordinator] = {}
+    for device in devices_data:
+        appliance_id = device.get("id")
+        if not appliance_id:
+            continue
+        coordinator = EoliaDeviceCoordinator(hass, session, device)
+        await coordinator.async_config_entry_first_refresh()
+        coordinators[appliance_id] = coordinator
+
+    hass.data[DOMAIN][entry.entry_id] = {
+        "session": session,
+        "coordinators": coordinators,
+        "devices": devices_data,
+    }
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True

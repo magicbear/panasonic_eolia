@@ -64,10 +64,16 @@ class EoliaDeviceCoordinator(DataUpdateCoordinator[EoliaDeviceData]):
                 self.session.get_device_status, self.appliance_id
             )
         except EoliaAuthError as err:
+            _LOGGER.warning(
+                "松下 Eolia 设备 '%s' 认证已过期 (%s)。请在 Home Assistant「设置 > 设备与服务」中点击「重新认证」以更新 Token。",
+                self.device_name,
+                err,
+            )
             raise ConfigEntryAuthFailed(
-                f"Authentication expired for {self.device_name}: {err}"
+                f"松下 Eolia 认证已过期 ({self.device_name}): {err}。请在「设置 > 设备与服务」中重新认证。"
             ) from err
         except EoliaError as err:
+            _LOGGER.debug("更新设备 %s 状态失败: %s", self.device_name, err)
             raise UpdateFailed(
                 f"Failed to update device {self.device_name} ({self.appliance_id}): {err}"
             ) from err

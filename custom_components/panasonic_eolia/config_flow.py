@@ -13,7 +13,13 @@ from homeassistant.data_entry_flow import FlowResult
 import homeassistant.helpers.config_validation as cv
 
 from .const import CONF_ACCESS_TOKEN, CONF_REFRESH_TOKEN, DOMAIN
-from .eolia_api import EoliaAuth, EoliaAuthError, EoliaError, EoliaSession
+from .eolia_api import (
+    EoliaAuth,
+    EoliaAuthError,
+    EoliaError,
+    EoliaResponseError,
+    EoliaSession,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -45,30 +51,41 @@ class PanasonicEoliaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             refresh_token: Optional[str] = None
             access_token: Optional[str] = None
 
-            try:
-                # 1. Check if user passed a callback URL or code
-                parsed = urllib.parse.urlparse(raw_input)
-                query_params = urllib.parse.parse_qs(parsed.query)
-                code = query_params.get("code", [None])[0]
-                if not code and parsed.fragment:
-                    fragment_params = urllib.parse.parse_qs(parsed.fragment)
-                    code = fragment_params.get("code", [None])[0]
+            # Restore code_verifier from context if lost during serialization
+            if not self._code_verifier and "code_verifier" in self.context:
+                self._code_verifier = self.context["code_verifier"]
 
-                # If raw_input is just a code
-                if not code and len(raw_input) > 20 and not raw_input.startswith("eyJ") and "=" not in raw_input and " " not in raw_input and self._code_verifier:
+            try:
+                # 1. Determine whether input is a redirect callback URL / code or a token
+                is_callback = "panasonic-eolia://" in raw_input or "code=" in raw_input or len(raw_input) < 100
+
+                code: Optional[str] = None
+                if "panasonic-eolia://" in raw_input or "code=" in raw_input:
+                    parsed = urllib.parse.urlparse(raw_input)
+                    query_params = urllib.parse.parse_qs(parsed.query)
+                    code = query_params.get("code", [None])[0]
+                    if not code and parsed.fragment:
+                        fragment_params = urllib.parse.parse_qs(parsed.fragment)
+                        code = fragment_params.get("code", [None])[0]
+                elif is_callback and not raw_input.startswith("eyJ") and "." not in raw_input:
                     code = raw_input
 
                 auth = EoliaAuth()
 
-                if code and self._code_verifier:
-                    # Exchange authorization code for tokens
+                if code:
+                    if not self._code_verifier:
+                        _LOGGER.warning("Authorization code provided but code_verifier is missing.")
+                        raise EoliaAuthError("Session expired or invalid code_verifier. Please log in again.")
+
+                    _LOGGER.debug("Exchanging authorization code for tokens...")
                     token_data = await self.hass.async_add_executor_job(
                         auth.exchange_code, code, self._code_verifier
                     )
                     refresh_token = token_data.get("refresh_token")
                     access_token = token_data.get("access_token")
                 else:
-                    # Assume user provided a refresh_token or access_token directly
+                    # User provided a direct refresh_token or access_token
+                    _LOGGER.debug("Using direct token provided by user.")
                     refresh_token = raw_input
                     auth.refresh_token = refresh_token
 
@@ -97,18 +114,28 @@ class PanasonicEoliaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         },
                     )
 
-            except EoliaAuthError:
+            except EoliaAuthError as err:
+                _LOGGER.warning("Authentication failed: %s", err)
                 errors["base"] = "invalid_auth"
-            except EoliaError:
+            except EoliaResponseError as err:
+                _LOGGER.warning("Eolia API response error (status %s): %s", err.status_code, err.message)
+                if err.status_code in (401, 403):
+                    errors["base"] = "invalid_auth"
+                else:
+                    errors["base"] = "cannot_connect"
+            except EoliaError as err:
+                _LOGGER.warning("Eolia connection error: %s", err)
                 errors["base"] = "cannot_connect"
             except Exception as err:
                 _LOGGER.exception("Unexpected exception in config flow: %s", err)
                 errors["base"] = "unknown"
 
-        # Generate a new PKCE pair and Auth URL for the user
+        # Generate a fresh PKCE pair and Auth URL for the user
         verifier, challenge = EoliaAuth.generate_pkce_pair()
         self._code_verifier = verifier
+        self.context["code_verifier"] = verifier
         self._auth_url = EoliaAuth.get_authorize_url(challenge)
+        self.context["auth_url"] = self._auth_url
 
         return self.async_show_form(
             step_id="user",

@@ -229,9 +229,13 @@ class EoliaSession:
     def get_devices(self) -> List[Dict[str, Any]]:
         """Fetch list of all air conditioner devices."""
         data = self._request("GET", API_DEVICES)
-        ac_list = data.get("ac_list", [])
+        if not isinstance(data, dict):
+            return []
+        ac_list = data.get("ac_list") or []
         devices = []
         for ac in ac_list:
+            if not isinstance(ac, dict) or not ac.get("appliance_id"):
+                continue
             devices.append(
                 {
                     "id": ac.get("appliance_id"),

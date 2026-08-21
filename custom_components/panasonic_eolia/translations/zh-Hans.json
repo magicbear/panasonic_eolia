@@ -7,6 +7,20 @@
         "data": {
           "token_or_url": "重定向 URL / 授权 Code / Refresh Token"
         }
+      },
+      "reauth_confirm": {
+        "title": "重新认证松下 Eolia 账号",
+        "description": "1. 请点击下方链接在浏览器中重新登录您的 CLUB Panasonic / Eolia 账号：\n\n[**👉 点击此处登录松下账号**]({auth_url})\n\n*(如点击无反应或白屏，请复制以下完整链接粘贴至浏览器打开：)*\n`{auth_url}`\n\n2. 登录成功后，请复制浏览器地址栏中的完整重定向 URL（或授权 Code / Refresh Token）并粘贴在下方：",
+        "data": {
+          "token_or_url": "重定向 URL / 授权 Code / Refresh Token"
+        }
+      },
+      "reconfigure": {
+        "title": "重新配置松下 Eolia Token",
+        "description": "1. 请点击下方链接在浏览器中登录您的 CLUB Panasonic / Eolia 账号以更新 Token：\n\n[**👉 点击此处登录松下账号**]({auth_url})\n\n*(如点击无反应或白屏，请复制以下完整链接粘贴至浏览器打开：)*\n`{auth_url}`\n\n2. 登录成功后，请复制浏览器地址栏中的完整重定向 URL（或授权 Code / Refresh Token）并粘贴在下方：",
+        "data": {
+          "token_or_url": "重定向 URL / 授权 Code / Refresh Token"
+        }
       }
     },
     "error": {
@@ -17,7 +31,23 @@
       "unknown": "发生未知异常，请重试。"
     },
     "abort": {
-      "already_configured": "该松下 Eolia 账号已经配置过，无需重复添加。"
+      "already_configured": "该松下 Eolia 账号已经配置过，无需重复添加。",
+      "reauth_successful": "重新认证成功，设备已刷新。",
+      "reconfigure_successful": "重新配置成功，Token 已更新并重新加载。"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "松下 Eolia 选项与重新加载",
+        "description": "如需更新 Token，请点击下方链接登录并粘贴新 URL/Token；如留空提交，将直接重新加载（Reload）该集成。\n\n[**👉 点击此处登录松下账号获取新 Token**]({auth_url})\n\n`{auth_url}`",
+        "data": {
+          "token_or_url": "新的重定向 URL / Token（留空则直接重新加载）"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "身份认证失败，授权码或 Token 无效或已过期。"
     }
   },
   "entity": {

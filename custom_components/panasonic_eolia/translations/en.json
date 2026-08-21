@@ -7,6 +7,20 @@
         "data": {
           "token_or_url": "Redirected URL, Code, or Refresh Token"
         }
+      },
+      "reauth_confirm": {
+        "title": "Re-authenticate Panasonic Eolia",
+        "description": "1. Open the following link to log in with your CLUB Panasonic / Eolia account:\n\n[**👉 Click here to authenticate with Panasonic**]({auth_url})\n\n*(Or copy and paste this URL into your browser:)*\n`{auth_url}`\n\n2. Copy the full redirected URL (or authorization code / refresh token) and paste it below:",
+        "data": {
+          "token_or_url": "Redirected URL, Code, or Refresh Token"
+        }
+      },
+      "reconfigure": {
+        "title": "Reconfigure Panasonic Eolia Token",
+        "description": "1. Open the following link to log in with your CLUB Panasonic / Eolia account:\n\n[**👉 Click here to authenticate with Panasonic**]({auth_url})\n\n*(Or copy and paste this URL into your browser:)*\n`{auth_url}`\n\n2. Copy the full redirected URL (or authorization code / refresh token) and paste it below:",
+        "data": {
+          "token_or_url": "Redirected URL, Code, or Refresh Token"
+        }
       }
     },
     "error": {
@@ -17,7 +31,23 @@
       "unknown": "An unexpected error occurred."
     },
     "abort": {
-      "already_configured": "This Panasonic Eolia account is already configured."
+      "already_configured": "This Panasonic Eolia account is already configured.",
+      "reauth_successful": "Re-authentication was successful.",
+      "reconfigure_successful": "Re-configuration was successful."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Panasonic Eolia Options",
+        "description": "To update your token, authenticate via the link below and paste the new URL/Token. Leave empty to simply reload the integration.\n\n[**👉 Click here to authenticate with Panasonic**]({auth_url})\n\n*(Or copy and paste this URL into your browser:)*\n`{auth_url}`",
+        "data": {
+          "token_or_url": "New Redirect URL / Token (Optional)"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "Authentication failed. The code or token is invalid or expired."
     }
   },
   "entity": {

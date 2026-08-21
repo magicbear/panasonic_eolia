@@ -11,6 +11,7 @@
     },
     "error": {
       "invalid_auth": "Authentication failed. The code or token is invalid or expired.",
+      "time_sync_error": "System time error (E-21291-00002). Server time differs from Japan Standard Time (JST) by more than 5 minutes.",
       "cannot_connect": "Failed to connect to Panasonic Eolia cloud servers.",
       "no_devices": "No Panasonic Eolia air conditioners found on this account.",
       "unknown": "An unexpected error occurred."

@@ -11,6 +11,7 @@
     },
     "error": {
       "invalid_auth": "身份认证失败，授权码或 Token 无效或已过期。",
+      "time_sync_error": "系统时钟误差过大 (E-21291-00002)。主机时间与日本标准时间（JST）误差超过 5 分钟，请开启 NTP 网络对时并校准系统时间。",
       "cannot_connect": "无法连接到松下 Eolia 云端服务器。",
       "no_devices": "未在该松下账号下找到任何 Eolia 空调设备。",
       "unknown": "发生未知异常，请重试。"

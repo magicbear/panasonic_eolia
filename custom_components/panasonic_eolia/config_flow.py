@@ -119,7 +119,9 @@ class PanasonicEoliaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 errors["base"] = "invalid_auth"
             except EoliaResponseError as err:
                 _LOGGER.warning("Eolia API response error (status %s): %s", err.status_code, err.message)
-                if err.status_code in (401, 403):
+                if "E-21291-00002" in str(err.message):
+                    errors["base"] = "time_sync_error"
+                elif err.status_code in (401, 403):
                     errors["base"] = "invalid_auth"
                 else:
                     errors["base"] = "cannot_connect"

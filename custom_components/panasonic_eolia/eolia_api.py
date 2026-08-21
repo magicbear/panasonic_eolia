@@ -15,7 +15,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
 from .const import (
@@ -190,12 +190,13 @@ class EoliaSession:
 
     def _headers(self) -> Dict[str, str]:
         token = self.auth.get_valid_access_token()
-        now_str = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+        jst = timezone(timedelta(hours=9))
+        now_jst_str = datetime.now(jst).strftime("%Y-%m-%dT%H:%M:%S")
         return {
             "Accept": "application/json",
             "Content-Type": "application/json;charset=UTF-8",
             "Authorization": f"Bearer {token}",
-            "X-Eolia-Date": now_str,
+            "X-Eolia-Date": now_jst_str,
             "User-Agent": "Dalvik/2.1.0 (Linux; U; Android 10; Pixel 3a XL Build/QQ1A.200105.002)",
         }
 

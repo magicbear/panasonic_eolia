@@ -8,11 +8,12 @@ from typing import Any, Dict
 from homeassistant.config_entries import ConfigEntry, SOURCE_IMPORT
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
 from homeassistant.helpers.typing import ConfigType
 
 from .const import CONF_ACCESS_TOKEN, CONF_REFRESH_TOKEN, DOMAIN
 from .coordinator import EoliaDeviceCoordinator
-from .eolia_api import EoliaAuth, EoliaError, EoliaSession
+from .eolia_api import EoliaAuth, EoliaAuthError, EoliaError, EoliaSession
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -66,9 +67,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Fetch all devices
     try:
         devices_data = await hass.async_add_executor_job(session.get_devices)
+    except EoliaAuthError as err:
+        raise ConfigEntryAuthFailed(
+            f"Authentication failed for {entry.title}: {err}"
+        ) from err
     except EoliaError as err:
-        _LOGGER.error("Failed to connect or fetch devices for %s: %s", entry.title, err)
-        return False
+        raise ConfigEntryNotReady(
+            f"Failed to connect to Panasonic Eolia for {entry.title}: {err}"
+        ) from err
 
     coordinators: Dict[str, EoliaDeviceCoordinator] = {}
     for device in devices_data:

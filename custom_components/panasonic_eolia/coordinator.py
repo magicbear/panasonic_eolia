@@ -8,6 +8,7 @@ import logging
 from typing import Any, Dict, Optional
 
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import (
     CoordinatorEntity,
@@ -16,7 +17,7 @@ from homeassistant.helpers.update_coordinator import (
 )
 
 from .const import DOMAIN
-from .eolia_api import EoliaError, EoliaSession
+from .eolia_api import EoliaAuthError, EoliaError, EoliaSession
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -62,6 +63,10 @@ class EoliaDeviceCoordinator(DataUpdateCoordinator[EoliaDeviceData]):
             status = await self.hass.async_add_executor_job(
                 self.session.get_device_status, self.appliance_id
             )
+        except EoliaAuthError as err:
+            raise ConfigEntryAuthFailed(
+                f"Authentication expired for {self.device_name}: {err}"
+            ) from err
         except EoliaError as err:
             raise UpdateFailed(
                 f"Failed to update device {self.device_name} ({self.appliance_id}): {err}"

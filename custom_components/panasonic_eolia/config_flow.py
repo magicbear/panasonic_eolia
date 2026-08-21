@@ -264,17 +264,25 @@ class PanasonicEoliaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 class PanasonicEoliaOptionsFlowHandler(config_entries.OptionsFlow):
     """Handle options flow for updating token and reloading."""
 
-    def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
+    def __init__(self, config_entry: Optional[config_entries.ConfigEntry] = None) -> None:
         """Initialize options flow."""
-        self.config_entry = config_entry
+        self._custom_config_entry = config_entry
         self._code_verifier: Optional[str] = None
         self._auth_url: Optional[str] = None
+
+    @property
+    def _entry(self) -> config_entries.ConfigEntry:
+        """Return the config entry."""
+        if hasattr(self, "config_entry") and self.config_entry is not None:
+            return self.config_entry
+        return self._custom_config_entry
 
     async def async_step_init(
         self, user_input: Optional[Dict[str, Any]] = None
     ) -> FlowResult:
         """Manage the options."""
         errors: Dict[str, str] = {}
+        entry = self._entry
 
         if user_input is not None:
             raw_input = user_input.get("token_or_url", "").strip()
@@ -310,20 +318,20 @@ class PanasonicEoliaOptionsFlowHandler(config_entries.OptionsFlow):
                     await self.hass.async_add_executor_job(session.get_devices)
 
                     self.hass.config_entries.async_update_entry(
-                        self.config_entry,
+                        entry,
                         data={
                             CONF_REFRESH_TOKEN: refresh_token or auth.refresh_token,
                             CONF_ACCESS_TOKEN: access_token or auth.access_token,
                         },
                     )
-                    await self.hass.config_entries.async_reload(self.config_entry.entry_id)
+                    await self.hass.config_entries.async_reload(entry.entry_id)
                     return self.async_create_entry(title="", data={})
                 except Exception as err:
                     _LOGGER.warning("Options update token failed: %s", err)
                     errors["base"] = "invalid_auth"
             else:
                 # If left empty, simply reload the integration
-                await self.hass.config_entries.async_reload(self.config_entry.entry_id)
+                await self.hass.config_entries.async_reload(entry.entry_id)
                 return self.async_create_entry(title="", data={})
 
         verifier, challenge = EoliaAuth.generate_pkce_pair()

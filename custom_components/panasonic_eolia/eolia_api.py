@@ -66,11 +66,19 @@ class EoliaAuth:
         refresh_token: Optional[str] = None,
         access_token: Optional[str] = None,
         token_expires_at: float = 0,
+        ssl_context: Optional[ssl.SSLContext] = None,
     ) -> None:
         self.refresh_token = refresh_token
         self.access_token = access_token
         self.token_expires_at = token_expires_at
-        self._ssl_context = ssl.create_default_context()
+        self._ssl_context = ssl_context
+
+    @property
+    def ssl_context(self) -> ssl.SSLContext:
+        """Lazily initialize SSL context in worker/executor thread."""
+        if self._ssl_context is None:
+            self._ssl_context = ssl.create_default_context()
+        return self._ssl_context
 
     @staticmethod
     def generate_pkce_pair() -> tuple[str, str]:
@@ -116,7 +124,7 @@ class EoliaAuth:
             method="POST",
         )
         try:
-            with urllib.request.urlopen(req, context=self._ssl_context, timeout=30) as resp:
+            with urllib.request.urlopen(req, context=self.ssl_context, timeout=30) as resp:
                 body = resp.read().decode("utf-8")
                 return json.loads(body)
         except urllib.error.HTTPError as err:
@@ -176,17 +184,25 @@ class EoliaSession:
         auth: Optional[EoliaAuth] = None,
         refresh_token: Optional[str] = None,
         access_token: Optional[str] = None,
+        ssl_context: Optional[ssl.SSLContext] = None,
     ) -> None:
         if auth:
             self.auth = auth
         elif refresh_token or access_token:
-            self.auth = EoliaAuth(refresh_token=refresh_token, access_token=access_token)
+            self.auth = EoliaAuth(refresh_token=refresh_token, access_token=access_token, ssl_context=ssl_context)
         else:
             raise ValueError("Either an EoliaAuth instance or tokens must be provided.")
 
-        self._ssl_context = ssl.create_default_context()
+        self._ssl_context = ssl_context
         self._device_tokens: Dict[str, str] = {}
         self._device_cache: Dict[str, Dict[str, Any]] = {}
+
+    @property
+    def ssl_context(self) -> ssl.SSLContext:
+        """Lazily initialize SSL context in worker/executor thread."""
+        if self._ssl_context is None:
+            self._ssl_context = self.auth.ssl_context
+        return self._ssl_context
 
     def _headers(self) -> Dict[str, str]:
         token = self.auth.get_valid_access_token()
@@ -214,7 +230,7 @@ class EoliaSession:
         req = urllib.request.Request(url, data=data, headers=headers, method=method)
 
         try:
-            with urllib.request.urlopen(req, context=self._ssl_context, timeout=30) as resp:
+            with urllib.request.urlopen(req, context=self.ssl_context, timeout=30) as resp:
                 resp_text = resp.read().decode("utf-8")
                 return json.loads(resp_text) if resp_text else {}
         except urllib.error.HTTPError as err:

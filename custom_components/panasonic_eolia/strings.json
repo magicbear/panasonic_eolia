@@ -1,0 +1,22 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Panasonic Eolia AC Authentication",
+        "description": "1. Open the following link to log in with your CLUB Panasonic / Eolia account:\n\n[**Click here to authenticate with Panasonic**]({auth_url})\n\n2. After login, your browser will redirect to a `panasonic-eolia://...` page (it's normal if the page cannot be displayed).\n3. Copy the full address bar URL (or authorization code / refresh token) and paste it below:",
+        "data": {
+          "token_or_url": "Redirected URL, Code, or Refresh Token"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "Authentication failed. The code or token is invalid or expired.",
+      "cannot_connect": "Failed to connect to Panasonic Eolia cloud servers.",
+      "no_devices": "No Panasonic Eolia air conditioners found on this account.",
+      "unknown": "An unexpected error occurred."
+    },
+    "abort": {
+      "already_configured": "This Panasonic Eolia account is already configured."
+    }
+  }
+}

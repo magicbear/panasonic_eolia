@@ -1,19 +1,8 @@
-# Panasonic Eolia HA component
+# Panasonic Eolia HA component (v2.0)
 
-> ⚠️ **DEPRECATED**: This integration is no longer maintained. Panasonic has changed their API and this component may not work correctly. Please consider migrating to [EchoNetLite](https://www.home-assistant.io/integrations/echonetlite/) for controlling your Panasonic air conditioners.
+A Home Assistant custom climate component to control Panasonic Eolia airconditioners via the v6 Cloud API with Auth0 authentication and Web UI Config Flow.
 
-A home assistant custom climate component to control Panasonic Eolia airconditioners.
+## Setup
 
-This component uses the python library `panasoniceolia`
-
-https://github.com/avolmensky/python-panasonic-eolia
-
-## Usage
-Add the following configuration in `configuration.yaml`:
-
-```yaml
-climate:
-  - platform: panasonic_eolia
-    username: !secret user
-    password: !secret password
-```
+1. In Home Assistant, go to **Settings** -> **Devices & Services** -> **Add Integration** -> search **Panasonic Eolia AC**.
+2. Click the authentication link to login with your CLUB Panasonic account, then paste the redirected URL to finish setup.

@@ -1,293 +1,381 @@
+"""Support for Panasonic Eolia Air Conditioners via v6 Cloud API."""
+
+from __future__ import annotations
+
 import logging
-import warnings
-import voluptuous as vol
 from datetime import timedelta
-from typing import Optional, List
-import panasoniceolia
+from typing import Any, Dict, List, Optional
+
+import voluptuous as vol
+
 import homeassistant.helpers.config_validation as cv
-from homeassistant.const import UnitOfTemperature
-
-from homeassistant.components.climate import PLATFORM_SCHEMA, ClimateEntity, HVACMode, ClimateEntityFeature
-
+from homeassistant.components.climate import (
+    PLATFORM_SCHEMA,
+    ClimateEntity,
+    ClimateEntityFeature,
+    HVACMode,
+)
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
-    ATTR_TEMPERATURE, CONF_USERNAME, CONF_PASSWORD)
+    ATTR_TEMPERATURE,
+    CONF_PASSWORD,
+    CONF_USERNAME,
+    UnitOfTemperature,
+)
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
+
+from .const import (
+    CONF_ACCESS_TOKEN,
+    CONF_REFRESH_TOKEN,
+    DOMAIN,
+    AirSwingLR,
+    AirSwingUD,
+    FanSpeed,
+    OperationMode,
+)
+from .eolia_api import EoliaAuth, EoliaAuthError, EoliaError, EoliaSession
 
 _LOGGER = logging.getLogger(__name__)
 
-DOMAIN = 'panasonic_eolia'
+SCAN_INTERVAL = timedelta(seconds=60)
 
-SCAN_INTERVAL = timedelta(seconds=300)
+PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
+    {
+        vol.Optional(CONF_REFRESH_TOKEN): cv.string,
+        vol.Optional(CONF_ACCESS_TOKEN): cv.string,
+        vol.Optional(CONF_USERNAME): cv.string,
+        vol.Optional(CONF_PASSWORD): cv.string,
+    }
+)
 
-DEPRECATION_MESSAGE = (
-    "The panasonic_eolia integration is deprecated and will no longer be maintained. "
-    "Panasonic has changed their API. Please consider migrating to EchoNetLite: "
-    "https://www.home-assistant.io/integrations/echonetlite/"
+# Mapping between Home Assistant HVACMode and Panasonic OperationMode
+HVAC_TO_EOLIA = {
+    HVACMode.HEAT_COOL: OperationMode.AUTO.value,
+    HVACMode.COOL: OperationMode.COOL.value,
+    HVACMode.HEAT: OperationMode.HEAT.value,
+    HVACMode.DRY: OperationMode.DRY.value,
+    HVACMode.FAN_ONLY: OperationMode.FAN.value,
+}
+
+EOLIA_TO_HVAC = {
+    OperationMode.AUTO.value: HVACMode.HEAT_COOL,
+    OperationMode.COOL.value: HVACMode.COOL,
+    OperationMode.HEAT.value: HVACMode.HEAT,
+    OperationMode.DRY.value: HVACMode.DRY,
+    OperationMode.DEHUMIDIFY.value: HVACMode.DRY,
+    OperationMode.CLOTHES_DRYER.value: HVACMode.DRY,
+    OperationMode.FAN.value: HVACMode.FAN_ONLY,
+    OperationMode.NANOE.value: HVACMode.FAN_ONLY,
+    OperationMode.MOIST_COOLING.value: HVACMode.COOL,
+    OperationMode.KEEP_HEATING.value: HVACMode.HEAT,
+}
+
+# Fan Speed Mappings
+FAN_MODES = {
+    "Auto": FanSpeed.AUTO,
+    "Quiet": FanSpeed.QUIET,
+    "Low": FanSpeed.LOW,
+    "Mid": FanSpeed.MID,
+    "HighMid": FanSpeed.HIGH_MID,
+    "High": FanSpeed.HIGH,
+}
+FAN_SPEED_TO_NAME = {v.value: k for k, v in FAN_MODES.items()}
+
+# Swing Modes (Vertical)
+SWING_MODES = {
+    "Auto": AirSwingUD.AUTO,
+    "Up": AirSwingUD.UP,
+    "UpMid": AirSwingUD.UP_MID,
+    "Mid": AirSwingUD.MID,
+    "DownMid": AirSwingUD.DOWN_MID,
+    "Down": AirSwingUD.DOWN,
+}
+SWING_UD_TO_NAME = {v.value: k for k, v in SWING_MODES.items()}
+
+SUPPORT_FLAGS = (
+    ClimateEntityFeature.TARGET_TEMPERATURE
+    | ClimateEntityFeature.FAN_MODE
+    | ClimateEntityFeature.SWING_MODE
+    | ClimateEntityFeature.TURN_ON
+    | ClimateEntityFeature.TURN_OFF
 )
 
 
-PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
-    vol.Required(CONF_USERNAME): cv.string,
-    vol.Required(CONF_PASSWORD): cv.string
-})
+async def async_setup_entry(
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    async_add_entities: AddEntitiesCallback,
+) -> None:
+    """Set up Panasonic Eolia climate entities from a config entry."""
+    session: EoliaSession = hass.data[DOMAIN][entry.entry_id]
 
-OPERATION_LIST = {
-    HVACMode.OFF: 'Off',
-    HVACMode.HEAT: 'Heat',
-    HVACMode.COOL: 'Cool',
-    HVACMode.HEAT_COOL: 'Auto',
-    HVACMode.DRY: 'Dry',
-    HVACMode.FAN_ONLY: 'Fan'
-}
+    try:
+        devices_data = await hass.async_add_executor_job(session.get_devices)
+    except EoliaError as err:
+        _LOGGER.error("Failed to fetch Panasonic Eolia devices: %s", err)
+        return
 
-SUPPORT_FLAGS = (
-    ClimateEntityFeature.TARGET_TEMPERATURE |
-    ClimateEntityFeature.FAN_MODE |
-    ClimateEntityFeature.SWING_MODE |
-    ClimateEntityFeature.TURN_ON |
-    ClimateEntityFeature.TURN_OFF )
-
-
-def api_call_login(func):
-    def wrapper_call(*args, **kwargs):
-        try:
-            func(*args, **kwargs)
-        except:
-            args[0]._api.login()
-            func(*args, **kwargs)
-    return wrapper_call
+    entities = [PanasonicEoliaDevice(session, device) for device in devices_data]
+    if entities:
+        async_add_entities(entities, True)
+    else:
+        _LOGGER.warning("No Panasonic Eolia devices found for entry %s.", entry.title)
 
 
-def setup_platform(hass, config, add_entities, discovery_info=None):
-    """Set up the panasonic cloud components."""
-    # Log deprecation warning when the platform is actually set up
-    warnings.warn(DEPRECATION_MESSAGE, DeprecationWarning, stacklevel=2)
-    _LOGGER.warning("DEPRECATED: %s", DEPRECATION_MESSAGE)
+def setup_platform(
+    hass: HomeAssistant,
+    config: ConfigType,
+    add_entities: AddEntitiesCallback,
+    discovery_info: Optional[DiscoveryInfoType] = None,
+) -> None:
+    """Set up the Panasonic Eolia climate platform from YAML."""
+    refresh_token = config.get(CONF_REFRESH_TOKEN)
+    access_token = config.get(CONF_ACCESS_TOKEN)
 
-    username = config.get(CONF_USERNAME)
-    password = config.get(CONF_PASSWORD)
+    if not refresh_token and not access_token:
+        _LOGGER.error(
+            "Panasonic Eolia now requires Auth0 authentication (refresh_token). "
+            "Please use the Web UI integration flow or auth_helper.py script to configure."
+        )
+        return
 
-    api = panasoniceolia.Session(username, password, verifySsl=True)
+    try:
+        auth = EoliaAuth(refresh_token=refresh_token, access_token=access_token)
+        session = EoliaSession(auth=auth)
+        devices_data = session.get_devices()
+    except EoliaError as err:
+        _LOGGER.error("Failed to authenticate or fetch devices from Panasonic Eolia: %s", err)
+        return
 
-    api.login()
-
-    _LOGGER.debug("Adding Panasonic Eolia devices")
-
-    devices = []
-    for device in api.get_devices():
-        _LOGGER.debug("Setting up %s ...", device)
-        devices.append(PanasonicEoliaDevice(
-            device, api, panasoniceolia.constants))
-
-    add_entities(devices, True)
+    entities = [PanasonicEoliaDevice(session, device) for device in devices_data]
+    if entities:
+        add_entities(entities, True)
+    else:
+        _LOGGER.warning("No Panasonic Eolia devices found on this account.")
 
 
 class PanasonicEoliaDevice(ClimateEntity):
-    """Representation of a Panasonic airconditioning."""
+    """Representation of a Panasonic Eolia air conditioner device."""
 
-    def __init__(self, device, api, constants):
-        """Initialize the device."""
-        _LOGGER.debug("Add panasonic device '{0}'".format(device['name']))
-        self._api = api
+    _attr_temperature_unit = UnitOfTemperature.CELSIUS
+    _attr_supported_features = SUPPORT_FLAGS
+    _attr_hvac_modes = [
+        HVACMode.OFF,
+        HVACMode.HEAT_COOL,
+        HVACMode.COOL,
+        HVACMode.HEAT,
+        HVACMode.DRY,
+        HVACMode.FAN_ONLY,
+    ]
+    _attr_fan_modes = list(FAN_MODES.keys())
+    _attr_swing_modes = list(SWING_MODES.keys())
+    _attr_min_temp = 16.0
+    _attr_max_temp = 30.0
+    _attr_target_temperature_step = 0.5
+
+    def __init__(self, session: EoliaSession, device: Dict[str, Any]) -> None:
+        """Initialize the Eolia device entity."""
+        self._session = session
         self._device = device
-        self._constants = constants
-        self._current_temp = None
-        self._is_on = False
-        self._hvac_mode = OPERATION_LIST[HVACMode.COOL]
+        self._appliance_id = device["id"]
+        self._name = device.get("name") or self._appliance_id
+        self._model = device.get("model", "")
 
-        self._unit = UnitOfTemperature.CELSIUS
-        self._target_temp = None
-        self._cur_temp = None
-        self._outside_temp = None
-        self._mode = None
-        self._eco = 'Auto'
-
-        self._current_fan = None
-        self._airswing_hor = None
-        self._airswing_vert = None
-
-        self._enable_turn_on_off_backwards_compatibility = False
-
-    def update(self):
-        """Update the state of this climate device."""
-        try:
-            data = self._api.get_device(self._device['id'])
-        except:
-            _LOGGER.debug(
-                "Error trying to get device {id} state, probably expired token, trying to update it...".format(**self._device))
-            self._api.login()
-            data = self._api.get_device(self._device['id'])
-
-        if data is None:
-            _LOGGER.debug(
-                "Received no data for device {id}".format(**self._device))
-            return
-
-        if data['parameters']['temperature'] != 126:
-            self._target_temp = data['parameters']['temperature']
-        else:
-            self._target_temp = None
-
-        if data['parameters']['temperatureInside'] != 126:
-            self._cur_temp = data['parameters']['temperatureInside']
-        else:
-            self._cur_temp = None
-
-        if data['parameters']['temperatureOutside'] != 126:
-            self._outside_temp = data['parameters']['temperatureOutside']
-        else:
-            self._outside_temp = None
-
-        self._is_on = bool(data['parameters']['power'].value)
-        self._hvac_mode = data['parameters']['mode'].name
-        self._current_fan = data['parameters']['fanSpeed'].name
-        self._airswing_vert = data['parameters']['airSwingVertical'].name
+        self._state_data: Dict[str, Any] = {}
+        self._is_on: bool = False
+        self._target_temp: Optional[float] = None
+        self._inside_temp: Optional[float] = None
+        self._outside_temp: Optional[float] = None
+        self._inside_humidity: Optional[int] = None
+        self._current_mode: str = OperationMode.COOL.value
+        self._current_fan: str = "Auto"
+        self._current_swing: str = "Auto"
+        self._nanoex: bool = False
+        self._air_flow: str = "not_set"
 
     @property
-    def supported_features(self):
-        """Return the list of supported features."""
-        return SUPPORT_FLAGS
+    def name(self) -> str:
+        """Return the display name of this climate device."""
+        return self._name
 
     @property
-    def name(self):
-        """Return the display name of this climate."""
-        return self._device['name']
+    def unique_id(self) -> str:
+        """Return unique ID for this device."""
+        return f"panasonic_eolia_{self._appliance_id}"
 
     @property
-    def group(self):
-        """Return the display group of this climate."""
-        return None
-
-    @property
-    def temperature_unit(self):
-        """Return the unit of measurement."""
-        return UnitOfTemperature.CELSIUS
-
-    @property
-    def target_temperature(self):
+    def target_temperature(self) -> Optional[float]:
         """Return the target temperature."""
         return self._target_temp
 
     @property
-    def hvac_mode(self):
-        """Return the current operation."""
+    def current_temperature(self) -> Optional[float]:
+        """Return the indoor temperature."""
+        return self._inside_temp
+
+    @property
+    def current_humidity(self) -> Optional[int]:
+        """Return the indoor humidity if available."""
+        return self._inside_humidity
+
+    @property
+    def hvac_mode(self) -> HVACMode:
+        """Return the current HVAC operation mode."""
         if not self._is_on:
             return HVACMode.OFF
-
-        for key, value in OPERATION_LIST.items():
-            if value == self._hvac_mode:
-                return key
-
-        # for key, value in OPERATION_LIST_EXTRA.items():
-        #     if value == self._hvac_mode:
-        #         return key
-
-        return None
+        return EOLIA_TO_HVAC.get(self._current_mode, HVACMode.HEAT_COOL)
 
     @property
-    def hvac_modes(self):
-        """Return the list of available operation modes."""
-        return list(OPERATION_LIST.keys())
-
-    @property
-    def fan_mode(self):
-        """Return the fan setting."""
+    def fan_mode(self) -> str:
+        """Return current fan mode."""
         return self._current_fan
 
     @property
-    def fan_modes(self):
-        """Return the list of available fan modes."""
-        return [f.name for f in self._constants.FanSpeed]
+    def swing_mode(self) -> str:
+        """Return current vertical swing mode."""
+        return self._current_swing
 
     @property
-    def swing_mode(self):
-        """Return the fan setting."""
-        return self._airswing_vert
+    def extra_state_attributes(self) -> Dict[str, Any]:
+        """Return extra state attributes for sensor monitoring."""
+        attrs = {
+            "appliance_id": self._appliance_id,
+            "model": self._model,
+            "raw_operation_mode": self._current_mode,
+            "outside_temperature": self._outside_temp,
+            "nanoex": self._nanoex,
+            "air_flow": self._air_flow,
+        }
+        if "device_errstatus" in self._state_data:
+            attrs["error_status"] = self._state_data["device_errstatus"]
+        if "ai_control" in self._state_data:
+            attrs["ai_control"] = self._state_data["ai_control"]
+        return attrs
 
-    @property
-    def swing_modes(self):
-        """Return the list of available swing modes."""
-        return [f.name for f in self._constants.AirSwingUD]
+    def update(self) -> None:
+        """Fetch updated state from Panasonic cloud."""
+        try:
+            data = self._session.get_device_status(self._appliance_id)
+        except EoliaError as err:
+            _LOGGER.error("Failed to update status for %s (%s): %s", self._name, self._appliance_id, err)
+            return
 
-    @property
-    def current_temperature(self):
-        """Return the current temperature."""
-        return self._cur_temp
+        self._state_data = data
 
-    @property
-    def outside_temperature(self):
-        """Return the current temperature."""
-        return self._outside_temp
+        # Power status
+        self._is_on = bool(data.get("operation_status", False))
 
-    @api_call_login
-    def set_temperature(self, **kwargs):
+        # Operation Mode
+        self._current_mode = data.get("operation_mode", OperationMode.COOL.value)
+
+        # Target Temperature (126 indicates invalid/unset in Panasonic protocol)
+        temp = data.get("temperature")
+        self._target_temp = float(temp) if temp is not None and temp != 126 else None
+
+        # Inside Temperature
+        inside_temp = data.get("inside_temp")
+        self._inside_temp = float(inside_temp) if inside_temp is not None and inside_temp != 126 else None
+
+        # Outside Temperature
+        outside_temp = data.get("outside_temp")
+        self._outside_temp = float(outside_temp) if outside_temp is not None and outside_temp != 126 else None
+
+        # Inside Humidity
+        inside_hum = data.get("inside_humidity")
+        self._inside_humidity = int(inside_hum) if inside_hum is not None and inside_hum != 126 else None
+
+        # Fan Speed
+        wind_volume = data.get("wind_volume", 0)
+        self._current_fan = FAN_SPEED_TO_NAME.get(wind_volume, "Auto")
+
+        # Swing Mode
+        wind_direction = data.get("wind_direction", 0)
+        self._current_swing = SWING_UD_TO_NAME.get(wind_direction, "Auto")
+
+        # NanoeX & Air Flow
+        self._nanoex = bool(data.get("nanoex", False))
+        self._air_flow = str(data.get("air_flow", "not_set"))
+
+    def set_temperature(self, **kwargs: Any) -> None:
         """Set new target temperature."""
         target_temp = kwargs.get(ATTR_TEMPERATURE)
         if target_temp is None:
             return
 
-        _LOGGER.debug("Set %s temperature %s", self.name, target_temp)
+        _LOGGER.debug("Setting %s temperature to %s°C", self._name, target_temp)
+        try:
+            self._session.set_device_status(
+                self._appliance_id,
+                temperature=target_temp,
+            )
+            self._target_temp = target_temp
+        except EoliaError as err:
+            _LOGGER.error("Failed to set temperature on %s: %s", self._name, err)
 
-        self._api.set_device(
-            self._device['id'],
-            temperature=target_temp
-        )
-
-    @api_call_login
-    def set_fan_mode(self, fan_mode):
-        """Set new fan mode."""
-        _LOGGER.debug("Set %s focus mode %s", self.name, fan_mode)
-
-        self._api.set_device(
-            self._device['id'],
-            fanSpeed=self._constants.FanSpeed[fan_mode]
-        )
-
-    @api_call_login
-    def set_hvac_mode(self, hvac_mode):
+    def set_hvac_mode(self, hvac_mode: HVACMode) -> None:
         """Set operation mode."""
-        _LOGGER.debug("Set %s mode %s", self.name, hvac_mode)
-        if hvac_mode == HVACMode.OFF:
-            self._api.set_device(
-                self._device['id'],
-                power=self._constants.Power.Off
+        _LOGGER.debug("Setting %s HVAC mode to %s", self._name, hvac_mode)
+        try:
+            if hvac_mode == HVACMode.OFF:
+                self._session.set_device_status(
+                    self._appliance_id,
+                    power=False,
+                )
+                self._is_on = False
+            else:
+                eolia_mode = HVAC_TO_EOLIA.get(hvac_mode, OperationMode.AUTO.value)
+                self._session.set_device_status(
+                    self._appliance_id,
+                    power=True,
+                    mode=eolia_mode,
+                )
+                self._is_on = True
+                self._current_mode = eolia_mode
+        except EoliaError as err:
+            _LOGGER.error("Failed to set HVAC mode on %s: %s", self._name, err)
+
+    def set_fan_mode(self, fan_mode: str) -> None:
+        """Set fan mode."""
+        _LOGGER.debug("Setting %s fan mode to %s", self._name, fan_mode)
+        fan_speed_enum = FAN_MODES.get(fan_mode, FanSpeed.AUTO)
+        try:
+            self._session.set_device_status(
+                self._appliance_id,
+                fan_speed=fan_speed_enum,
             )
-        else:
+            self._current_fan = fan_mode
+        except EoliaError as err:
+            _LOGGER.error("Failed to set fan mode on %s: %s", self._name, err)
 
-            self._api.set_device(
-                self._device['id'],
-                power=self._constants.Power.On,
-                mode=self._constants.OperationMode[OPERATION_LIST[hvac_mode]]
+    def set_swing_mode(self, swing_mode: str) -> None:
+        """Set vertical swing mode."""
+        _LOGGER.debug("Setting %s swing mode to %s", self._name, swing_mode)
+        swing_enum = SWING_MODES.get(swing_mode, AirSwingUD.AUTO)
+        try:
+            self._session.set_device_status(
+                self._appliance_id,
+                air_swing_vertical=swing_enum,
             )
+            self._current_swing = swing_mode
+        except EoliaError as err:
+            _LOGGER.error("Failed to set swing mode on %s: %s", self._name, err)
 
-    @api_call_login
-    def set_swing_mode(self, swing_mode):
-        """Set swing mode."""
-        _LOGGER.debug("Set %s swing mode %s", self.name, swing_mode)
-        if swing_mode == 'Auto':
-            automode = self._constants.AirSwingAutoMode["AirSwingUD"]
-        else:
-            automode = self._constants.AirSwingAutoMode["Disabled"]
+    def turn_on(self) -> None:
+        """Turn on the device."""
+        _LOGGER.debug("Turning on %s", self._name)
+        try:
+            self._session.set_device_status(self._appliance_id, power=True)
+            self._is_on = True
+        except EoliaError as err:
+            _LOGGER.error("Failed to turn on %s: %s", self._name, err)
 
-        _LOGGER.debug("Set %s swing mode %s", self.name, swing_mode, automode)
-
-        self._api.set_device(
-            self._device['id'],
-            power=self._constants.Power.On,
-            airSwingVertical=self._constants.AirSwingUD[swing_mode],
-            fanAutoMode=automode
-        )
-
-    @property
-    def min_temp(self):
-        """Return the minimum temperature."""
-        return 16
-
-    @property
-    def max_temp(self):
-        """Return the maximum temperature."""
-        return 30
-
-    @property
-    def target_temp_step(self):
-        """Return the temperature step."""
-        return 0.5
+    def turn_off(self) -> None:
+        """Turn off the device."""
+        _LOGGER.debug("Turning off %s", self._name)
+        try:
+            self._session.set_device_status(self._appliance_id, power=False)
+            self._is_on = False
+        except EoliaError as err:
+            _LOGGER.error("Failed to turn off %s: %s", self._name, err)

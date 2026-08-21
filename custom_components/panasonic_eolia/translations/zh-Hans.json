@@ -1,0 +1,22 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "松下 Eolia（エオリア）空调认证",
+        "description": "1. 请点击下方链接在浏览器中登录您的 CLUB Panasonic / Eolia 账号：\n\n[**👉 点击此处登录松下账号**]({auth_url})\n\n2. 登录成功后，浏览器将跳转至 `panasonic-eolia://...` 地址（如提示网页无法打开属正常现象）。\n3. 请复制浏览器地址栏中的完整 URL（或授权 Code、或已有 Refresh Token）并粘贴在下方：",
+        "data": {
+          "token_or_url": "重定向 URL / 授权 Code / Refresh Token"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "身份认证失败，授权码或 Token 无效或已过期。",
+      "cannot_connect": "无法连接到松下 Eolia 云端服务器。",
+      "no_devices": "未在该松下账号下找到任何 Eolia 空调设备。",
+      "unknown": "发生未知异常，请重试。"
+    },
+    "abort": {
+      "already_configured": "该松下 Eolia 账号已经配置过，无需重复添加。"
+    }
+  }
+}

@@ -9,7 +9,7 @@ AUTH0_CLIENT_ID = "JpNCoLeXs4rPMhWmnOjbOxat7MWTZEgr"
 AUTH0_AUDIENCE = "https://club.panasonic.jp/JpNCoLeXs4rPMhWmnOjbOxat7MWTZEgr/api/v1/"
 AUTH0_SCOPE = "openid offline_access eolia.control"
 AUTH0_REDIRECT_URI = "panasonic-eolia://auth.digital.panasonic.com/android/com.panasonic.SmartRAC/callback"
-AUTH0_CONNECTION = "panasonic-eolia"
+
 
 # API Endpoints
 API_BASE_URL = "https://app.rac.apws.panasonic.com/eolia/v6"

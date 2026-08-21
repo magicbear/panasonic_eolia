@@ -3,7 +3,7 @@
     "step": {
       "user": {
         "title": "松下 Eolia（エオリア）空调认证",
-        "description": "1. 请点击下方链接在浏览器中登录您的 CLUB Panasonic / Eolia 账号：\n\n[**👉 点击此处登录松下账号**]({auth_url})\n\n2. 登录成功后，浏览器将跳转至 `panasonic-eolia://...` 地址（如提示网页无法打开属正常现象）。\n3. 请复制浏览器地址栏中的完整 URL（或授权 Code、或已有 Refresh Token）并粘贴在下方：",
+        "description": "1. 请点击下方链接在浏览器中登录您的 CLUB Panasonic / Eolia 账号：\n\n[**👉 点击此处登录松下账号**]({auth_url})\n\n*(如点击无反应或白屏，请复制以下完整链接粘贴至浏览器打开：)*\n`{auth_url}`\n\n2. 登录成功后，浏览器将跳转至 `panasonic-eolia://...` 地址（如提示网页无法打开属正常现象）。\n3. 请复制浏览器地址栏中的完整 URL（或授权 Code、或已有 Refresh Token）并粘贴在下方：",
         "data": {
           "token_or_url": "重定向 URL / 授权 Code / Refresh Token"
         }

@@ -3,7 +3,7 @@
     "step": {
       "user": {
         "title": "Panasonic Eolia AC Authentication",
-        "description": "1. Open the following link to log in with your CLUB Panasonic / Eolia account:\n\n[**Click here to authenticate with Panasonic**]({auth_url})\n\n2. After login, your browser will redirect to a `panasonic-eolia://...` page (it's normal if the page cannot be displayed).\n3. Copy the full address bar URL (or authorization code / refresh token) and paste it below:",
+        "description": "1. Open the following link to log in with your CLUB Panasonic / Eolia account:\n\n[**👉 Click here to authenticate with Panasonic**]({auth_url})\n\n*(Or copy and paste this URL into your browser:)*\n`{auth_url}`\n\n2. After login, your browser will redirect to a `panasonic-eolia://...` page (it's normal if the page cannot be displayed).\n3. Copy the full address bar URL (or authorization code / refresh token) and paste it below:",
         "data": {
           "token_or_url": "Redirected URL, Code, or Refresh Token"
         }

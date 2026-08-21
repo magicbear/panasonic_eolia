@@ -25,7 +25,6 @@ AUTH0_CLIENT_ID = "JpNCoLeXs4rPMhWmnOjbOxat7MWTZEgr"
 AUTH0_AUDIENCE = "https://club.panasonic.jp/JpNCoLeXs4rPMhWmnOjbOxat7MWTZEgr/api/v1/"
 AUTH0_SCOPE = "openid offline_access eolia.control"
 AUTH0_REDIRECT_URI = "panasonic-eolia://auth.digital.panasonic.com/android/com.panasonic.SmartRAC/callback"
-AUTH0_CONNECTION = "panasonic-eolia"
 
 
 def generate_pkce_pair():
@@ -42,7 +41,6 @@ def get_authorize_url(code_challenge: str, state: str, nonce: str) -> str:
         "redirect_uri": AUTH0_REDIRECT_URI,
         "scope": AUTH0_SCOPE,
         "audience": AUTH0_AUDIENCE,
-        "connection": AUTH0_CONNECTION,
         "code_challenge": code_challenge,
         "code_challenge_method": "S256",
         "state": state,
